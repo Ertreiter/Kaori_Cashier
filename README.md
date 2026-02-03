@@ -5,51 +5,91 @@ A Point of Sale system for cafes and restaurants with React Native mobile app an
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- Go 1.21+
-- Expo Go app on your phone
+- **Node.js 18+**
+- **Go 1.21+**
+- **Android Studio** (for building APK)
 
-### Setup
+---
 
-#### 1. Backend
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your settings (or use defaults for dummy data)
-go run cmd/server/main.go
-```
+## 📱 Mobile App Setup
 
-The backend will start on `http://localhost:8080`
-
-#### 2. Mobile App
+### 1. Install Dependencies
 ```bash
 cd mobile
 npm install
-npx expo start --lan
 ```
 
-Scan the QR code with Expo Go (make sure phone and computer are on same WiFi).
-
-### 📱 Login Credentials
-
-| Email | Password | Role |
-|-------|----------|------|
-| admin@kaori.pos | admin123 | Super Admin |
-| store@kaori.pos | store123 | Store Admin |
-| cashier@kaori.pos | cashier123 | Cashier |
-| kitchen@kaori.pos | kitchen123 | Kitchen |
-
-### ⚠️ Important: Configure API URL
-
-Before running the mobile app, update the backend URL in `mobile/constants/config.ts`:
-
+### 2. Configure Backend URL
+Edit `mobile/constants/config.ts`:
 ```typescript
-export const API_URL = 'http://YOUR_COMPUTER_IP:8080/api';
+// Replace with your backend server IP
+export const API_URL = 'http://YOUR_IP_ADDRESS:8080/api';
 ```
 
-Replace `YOUR_COMPUTER_IP` with your computer's local IP address (e.g., `192.168.1.100`).
+### 3. Build APK (Android)
 
-## Features
+#### Option A: Build with Android Studio
+1. Open Android Studio
+2. Open project: `mobile/android`
+3. Build > Build Bundle(s) / APK(s) > Build APK(s)
+4. APK location: `mobile/android/app/build/outputs/apk/release/`
+
+#### Option B: Build via Command Line
+```bash
+cd mobile
+
+# Generate native Android project
+npx expo prebuild --platform android
+
+# Build the APK
+cd android
+./gradlew assembleRelease
+
+# APK will be at:
+# android/app/build/outputs/apk/release/app-release.apk
+```
+
+> **Note:** Make sure `ANDROID_HOME` is set to your Android SDK path.
+
+### 4. Install APK on Device
+```bash
+adb install mobile/android/app/build/outputs/apk/release/app-release.apk
+```
+
+---
+
+## 🖥️ Backend Setup
+
+### 1. Configure Environment
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edit `.env` with your settings (defaults work for dummy data mode).
+
+### 2. Run Backend
+```bash
+cd backend
+go run cmd/server/main.go
+```
+
+The server will start on `http://localhost:8080`
+
+---
+
+## � Login Credentials
+
+| Email | Password | PIN | Role |
+|-------|----------|-----|------|
+| admin@kaori.pos | admin123 | 1234 | Super Admin |
+| store@kaori.pos | store123 | 5678 | Store Admin |
+| cashier@kaori.pos | cashier123 | 1111 | Cashier |
+| kitchen@kaori.pos | kitchen123 | 2222 | Kitchen |
+
+---
+
+## 📋 Features
 
 ### Cashier Module
 - Product grid with categories
@@ -68,8 +108,35 @@ Replace `YOUR_COMPUTER_IP` with your computer's local IP address (e.g., `192.168
 - Staff management
 - Order history
 
-## Tech Stack
+---
+
+## 🛠️ Tech Stack
 
 - **Backend**: Go, Gin, PostgreSQL (with dummy data mode)
-- **Mobile**: React Native, Expo Router, Zustand
+- **Mobile**: React Native, Expo, Zustand
 - **Real-time**: WebSocket for kitchen updates
+
+---
+
+## ⚠️ Troubleshooting
+
+### White Screen on App Start
+```bash
+cd mobile
+rm -rf node_modules
+npm install
+npx expo start --clear
+```
+
+### Gradle Build Fails
+1. Make sure Android SDK is installed
+2. Set `ANDROID_HOME` environment variable:
+   ```bash
+   export ANDROID_HOME=$HOME/Android/Sdk
+   export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools
+   ```
+
+### Cannot Connect to Backend
+- Ensure backend is running (`go run cmd/server/main.go`)
+- Check the API_URL in `mobile/constants/config.ts` matches your backend IP
+- Phone and computer must be on same network
