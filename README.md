@@ -118,6 +118,37 @@ The server will start on `http://localhost:8080`
 
 ---
 
+## 🚚 Delivery Platform Integration
+
+The system supports incoming orders from food delivery platforms:
+
+| Platform | Webhook Endpoint | Order Prefix |
+|----------|------------------|--------------|
+| GrabFood | `POST /api/webhooks/grabfood` | GRAB-xxxx |
+| GoFood | `POST /api/webhooks/gofood` | GOFOOD-xxxx |
+| Shopee Food | `POST /api/webhooks/shopee` | SHOPEE-xxxx |
+
+### Testing Delivery Orders
+
+Use the simulate endpoint to test incoming delivery orders:
+
+```bash
+curl -X POST http://localhost:8080/api/simulate/order \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "grabfood",
+    "customer_name": "John Doe",
+    "items": [
+      {"name": "Latte", "quantity": 2, "price": 28000},
+      {"name": "Croissant", "quantity": 1, "price": 25000}
+    ]
+  }'
+```
+
+Sources: `cashier`, `table_qr`, `grabfood`, `gofood`, `shopee_food`
+
+---
+
 ## ⚠️ Troubleshooting
 
 ### White Screen on App Start
