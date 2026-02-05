@@ -6,6 +6,15 @@ import (
 	"time"
 )
 
+// Order source constants
+const (
+	SourceCashier    = "cashier"
+	SourceTableQR    = "table_qr"
+	SourceGrabFood   = "grabfood"
+	SourceGoFood     = "gofood"
+	SourceShopeeFood = "shopee_food"
+)
+
 // In-memory dummy data store
 var (
 	mu sync.RWMutex
@@ -110,7 +119,7 @@ var (
 		},
 		{
 			ID: "prod-10", CategoryID: "cat-4", Name: "Brownies", Description: "Chocolate fudge brownies",
-			BasePrice: 28000, ImageURL: "", IsAvailable: false,
+			BasePrice: 28000, ImageURL: "", IsAvailable: true,
 			Variants:  []Variant{},
 			Modifiers: []Modifier{},
 		},
@@ -133,7 +142,7 @@ var (
 		{ID: "44444444-4444-4444-4444-444444444444", Email: "kitchen@kaori.pos", Name: "Chef Mike", Role: "kitchen", PIN: "2222"},
 	}
 
-	// Orders (in-memory, will grow during runtime)
+	// Orders (in-memory)
 	Orders   = []Order{}
 	orderSeq = 1000
 )
@@ -175,7 +184,7 @@ type Table struct {
 	ID       string `json:"id"`
 	Number   int    `json:"number"`
 	Capacity int    `json:"capacity"`
-	Status   string `json:"status"` // available, occupied, reserved
+	Status   string `json:"status"`
 	QRCode   string `json:"qr_code"`
 }
 
@@ -201,23 +210,28 @@ type OrderItem struct {
 }
 
 type Order struct {
-	ID            string      `json:"id"`
-	OrderNumber   string      `json:"order_number"`
-	TableID       string      `json:"table_id,omitempty"`
-	TableNumber   int         `json:"table_number,omitempty"`
-	OrderType     string      `json:"order_type"`     // dine_in, takeaway
-	OrderSource   string      `json:"order_source"`   // cashier, table_qr, client_app
-	Status        string      `json:"status"`         // pending, confirmed, cooking, ready, completed, cancelled
-	PaymentStatus string      `json:"payment_status"` // unpaid, paid
-	Items         []OrderItem `json:"items"`
-	Subtotal      int         `json:"subtotal"`
-	Tax           int         `json:"tax"`
-	Total         int         `json:"total"`
-	Notes         string      `json:"notes,omitempty"`
-	CreatedAt     time.Time   `json:"created_at"`
-	UpdatedAt     time.Time   `json:"updated_at"`
-	CashierID     string      `json:"cashier_id,omitempty"`
-	CashierName   string      `json:"cashier_name,omitempty"`
+	ID              string      `json:"id"`
+	OrderNumber     string      `json:"order_number"`
+	ExternalOrderID string      `json:"external_order_id,omitempty"` // GrabFood/GoFood/Shopee order ID
+	TableID         string      `json:"table_id,omitempty"`
+	TableNumber     int         `json:"table_number,omitempty"`
+	OrderType       string      `json:"order_type"`   // dine_in, takeaway, delivery
+	OrderSource     string      `json:"order_source"` // cashier, table_qr, grabfood, gofood, shopee_food
+	Status          string      `json:"status"`       // pending, confirmed, cooking, ready, completed, cancelled
+	PaymentStatus   string      `json:"payment_status"`
+	Items           []OrderItem `json:"items"`
+	Subtotal        int         `json:"subtotal"`
+	Tax             int         `json:"tax"`
+	Total           int         `json:"total"`
+	Notes           string      `json:"notes,omitempty"`
+	CustomerName    string      `json:"customer_name,omitempty"`
+	CustomerPhone   string      `json:"customer_phone,omitempty"`
+	DeliveryAddress string      `json:"delivery_address,omitempty"`
+	DriverName      string      `json:"driver_name,omitempty"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+	CashierID       string      `json:"cashier_id,omitempty"`
+	CashierName     string      `json:"cashier_name,omitempty"`
 }
 
 // Helper functions
@@ -226,6 +240,22 @@ func GetNextOrderNumber() string {
 	defer mu.Unlock()
 	orderSeq++
 	return fmt.Sprintf("ORD-%04d", orderSeq)
+}
+
+func GetNextDeliveryOrderNumber(source string) string {
+	mu.Lock()
+	defer mu.Unlock()
+	orderSeq++
+	prefix := "DEL"
+	switch source {
+	case SourceGrabFood:
+		prefix = "GRAB"
+	case SourceGoFood:
+		prefix = "GOFOOD"
+	case SourceShopeeFood:
+		prefix = "SHOPEE"
+	}
+	return fmt.Sprintf("%s-%04d", prefix, orderSeq)
 }
 
 func AddOrder(order Order) {
@@ -260,4 +290,38 @@ func GetOrdersByStatus(statuses ...string) []Order {
 		}
 	}
 	return result
+}
+
+func GetOrdersBySource(source string) []Order {
+	mu.RLock()
+	defer mu.RUnlock()
+	var result []Order
+	for _, order := range Orders {
+		if order.OrderSource == source {
+			result = append(result, order)
+		}
+	}
+	return result
+}
+
+func GetAllOrders() []Order {
+	mu.RLock()
+	defer mu.RUnlock()
+	return append([]Order{}, Orders...)
+}
+
+func GetOrderByID(orderID string) *Order {
+	mu.RLock()
+	defer mu.RUnlock()
+	for i := range Orders {
+		if Orders[i].ID == orderID {
+			return &Orders[i]
+		}
+	}
+	return nil
+}
+
+// IsDeliverySource checks if the source is from a delivery platform
+func IsDeliverySource(source string) bool {
+	return source == SourceGrabFood || source == SourceGoFood || source == SourceShopeeFood
 }

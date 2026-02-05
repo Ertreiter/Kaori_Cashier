@@ -7,15 +7,11 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 
 	"github.com/kaori/backend/internal/config"
 	"github.com/kaori/backend/internal/handler"
 	"github.com/kaori/backend/internal/middleware"
-	"github.com/kaori/backend/internal/repository"
-	"github.com/kaori/backend/internal/service"
 	"github.com/kaori/backend/internal/websocket"
-	"github.com/kaori/backend/pkg/database"
 )
 
 func main() {
@@ -29,30 +25,13 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
-	// Initialize database
-	db, err := database.Connect(cfg.DatabaseURL)
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
-	defer db.Close()
-
-	// Run migrations
-	if err := database.RunMigrations(db); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
-	}
-
 	// Initialize WebSocket hub
 	hub := websocket.NewHub()
 	go hub.Run()
 
-	// Initialize repositories
-	repos := repository.NewRepositories(db)
-
-	// Initialize services
-	services := service.NewServices(repos, cfg, hub)
-
-	// Initialize handlers
-	handlers := handler.NewHandlers(services, hub)
+	// Initialize handlers (using dummy data)
+	handlers := handler.NewHandlers(nil, hub)
+	deliveryHandler := handler.NewDeliveryHandler(hub)
 
 	// Setup Gin router
 	if cfg.GinMode == "release" {
@@ -72,10 +51,11 @@ func main() {
 	// Root endpoint
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"service": "Kaori POS API",
-			"version": "1.0.0",
-			"status":  "online",
-			"docs":    "/api/health for health check",
+			"service":   "Kaori POS API",
+			"version":   "1.0.0",
+			"status":    "online",
+			"mode":      "dummy_data",
+			"endpoints": "/api/health for health check",
 		})
 	})
 
@@ -87,10 +67,11 @@ func main() {
 	// API routes
 	api := r.Group("/api")
 	{
-		// Health check under /api as well
+		// Health check
 		api.GET("/health", func(c *gin.Context) {
 			c.JSON(200, gin.H{"status": "ok", "service": "kaori-api"})
 		})
+
 		// Auth routes (public)
 		auth := api.Group("/auth")
 		{
@@ -98,6 +79,17 @@ func main() {
 			auth.POST("/login/pin", handlers.Auth.LoginWithPIN)
 			auth.POST("/refresh", handlers.Auth.RefreshToken)
 		}
+
+		// Delivery platform webhooks (public - they have their own auth)
+		webhooks := api.Group("/webhooks")
+		{
+			webhooks.POST("/grabfood", deliveryHandler.HandleGrabFood)
+			webhooks.POST("/gofood", deliveryHandler.HandleGoFood)
+			webhooks.POST("/shopee", deliveryHandler.HandleShopeeFood)
+		}
+
+		// Simulate order endpoint (for testing)
+		api.POST("/simulate/order", deliveryHandler.SimulateOrder)
 
 		// Protected routes
 		protected := api.Group("")
@@ -153,6 +145,7 @@ func main() {
 				orders.GET("", handlers.Order.List)
 				orders.GET("/active", handlers.Order.GetActive)
 				orders.GET("/incoming", handlers.Order.GetIncoming)
+				orders.GET("/source/:source", deliveryHandler.GetOrdersBySource)
 				orders.GET("/:id", handlers.Order.GetByID)
 				orders.POST("", handlers.Order.Create)
 				orders.PATCH("/:id/confirm", middleware.RequireRole("cashier", "store_admin", "super_admin"), handlers.Order.Confirm)
@@ -169,7 +162,7 @@ func main() {
 				payments.GET("/:id/status", handlers.Payment.GetStatus)
 			}
 
-			// Members (schema ready, feature on hold)
+			// Members
 			members := protected.Group("/members")
 			{
 				members.GET("/lookup", handlers.Member.Lookup)
@@ -196,7 +189,7 @@ func main() {
 				reports.GET("/hourly", handlers.Report.GetHourly)
 			}
 
-			// Users (staff management)
+			// Users
 			users := protected.Group("/users")
 			users.Use(middleware.RequireRole("store_admin", "super_admin"))
 			{
@@ -225,7 +218,10 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("🚀 Kaori API starting on port %s", port)
+	log.Printf("🚀 Kaori POS API starting on port %s (dummy data mode)", port)
+	log.Printf("📡 Delivery webhooks: /api/webhooks/{grabfood,gofood,shopee}")
+	log.Printf("🧪 Simulate order: POST /api/simulate/order")
+
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
