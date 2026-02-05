@@ -1,27 +1,10 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Get backend URL based on environment
+// Get backend URL - Using your local network IP
 const getBackendUrl = (): string => {
-    // In development, try to auto-detect from Expo host
-    if (__DEV__) {
-        const hostUri = Constants.expoConfig?.hostUri;
-        if (hostUri) {
-            const host = hostUri.split(':')[0];
-            return `http://${host}:8080/api`;
-        }
-
-        // Android emulator uses special IP
-        if (Platform.OS === 'android') {
-            return 'http://10.0.2.2:8080/api';
-        }
-
-        // iOS simulator uses localhost
-        return 'http://localhost:8080/api';
-    }
-
-    // Production - change this to your server URL
-    return 'http://localhost:8080/api';
+    // Your network IP - phone connects to this
+    return 'http://192.168.1.20:8080/api';
 };
 
 export const API_URL = getBackendUrl();
