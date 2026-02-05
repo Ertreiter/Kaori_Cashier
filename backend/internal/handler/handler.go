@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/kaori/backend/internal/config"
 	"github.com/kaori/backend/internal/service"
 	"github.com/kaori/backend/internal/websocket"
 )
@@ -21,7 +22,27 @@ type Handlers struct {
 }
 
 // NewHandlers creates all handler instances
+// If services is nil, handlers will use stub implementations with dummy data
 func NewHandlers(services *service.Services, hub *websocket.Hub) *Handlers {
+	if services == nil {
+		// Dummy data mode - create handlers with dummy auth service
+		cfg := config.Load()
+		authService := service.NewAuthService(cfg)
+		return &Handlers{
+			Auth:     NewAuthHandler(authService),
+			Store:    &StoreHandler{},
+			Table:    &TableHandler{},
+			Category: &CategoryHandler{},
+			Product:  &ProductHandler{},
+			Order:    &OrderHandler{hub: hub},
+			Payment:  &PaymentHandler{},
+			Member:   &MemberHandler{},
+			Voucher:  &VoucherHandler{},
+			Report:   &ReportHandler{},
+			User:     &UserHandler{},
+		}
+	}
+
 	return &Handlers{
 		Auth:     NewAuthHandler(services.Auth),
 		Store:    NewStoreHandler(services.Store),
