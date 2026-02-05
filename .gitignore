@@ -19,6 +19,7 @@ backend/tmp/
 .env.local
 .env.*.local
 backend/.env
+!backend/.env.development
 
 # IDE
 .idea/

@@ -15,10 +15,15 @@ import (
 )
 
 func main() {
-	// Load .env file in development
+	// Load .env file in development (try .env first, then .env.development)
 	if os.Getenv("GIN_MODE") != "release" {
 		if err := godotenv.Load(); err != nil {
-			log.Println("No .env file found, using environment variables")
+			// Try .env.development as fallback
+			if err := godotenv.Load(".env.development"); err != nil {
+				log.Println("No .env file found, using environment variables")
+			} else {
+				log.Println("Loaded .env.development")
+			}
 		}
 	}
 
