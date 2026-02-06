@@ -1,10 +1,9 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Get backend URL - Using your local network IP
+// Get backend URL - localhost for browser testing
 const getBackendUrl = (): string => {
-    // Your network IP - phone connects to this
-    return 'http://192.168.1.20:8080/api';
+    return 'http://localhost:8080/api';
 };
 
 export const API_URL = getBackendUrl();
